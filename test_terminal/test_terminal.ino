@@ -5,6 +5,10 @@
 #define USE_DISPLAY
 #define USE_JOYSTICK
 
+// version history:
+// 1.0 - add superchart
+#define APP_VERSION "ver 1.0"
+
 #include <PietteTech_DHT.h>  // Uncommend if building using CLI
 //#include <../libraries/PietteTech_DHT-8266-master/PietteTech_DHT.h>  // Uncommend if building using CLI
 
@@ -49,8 +53,24 @@ void IRAM_ATTR dht_wrapper() {
     DHT.isrCallback();
 }
 
+// Comment this out to disable prints and save space
+#define BLYNK_PRINT Serial
+
+#ifdef ESP32
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+#define  Relay  23 //LED_BUILTIN//D12 // нога, к которой подключено реле
+#else
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#define  Relay  D8 //LED_BUILTIN//D12 // нога, к которой подключено реле
+#endif
+
+
 void loopPrintDHT()
 {
+
     Serial.print("\n");
     Serial.print(n);
     Serial.print(": Retrieving information from sensor: ");
@@ -91,8 +111,11 @@ void loopPrintDHT()
     Serial.print("Humidity (%): ");
     Serial.println(DHT.getHumidity(), 2);
 
+    float temp = DHT.getCelsius();
     Serial.print("Temperature (oC): ");
-    Serial.println(DHT.getCelsius(), 2);
+    Serial.println(temp, 2);
+
+    Blynk.virtualWrite(V2, temp);
 
     //Serial.print("Temperature (oF): ");
     //Serial.println(DHT.getFahrenheit(), 2);
@@ -113,19 +136,6 @@ void loopPrintDHT()
 //  1 = 61 2 = MegaFonMR100 3=HUAWEI_P30 4=IPHONE
 #define WIFI_  2
 
-// Comment this out to disable prints and save space
-#define BLYNK_PRINT Serial
-
-#ifdef ESP32
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <BlynkSimpleEsp32.h>
-#define  Relay  23 //LED_BUILTIN//D12 // нога, к которой подключено реле
-#else
-#include <ESP8266WiFi.h>
-#include <BlynkSimpleEsp8266.h>
-#define  Relay  D8 //LED_BUILTIN//D12 // нога, к которой подключено реле
-#endif
 
 BlynkTimer Timer1;
 
@@ -234,6 +244,7 @@ BLYNK_WRITE(V1)
             }
             printTStat();
             printRelayStats();
+            terminal.println(APP_VERSION);
         }
         else if (String("heat") == param.asStr()) {
             Serial.println("terminal heat");
@@ -415,6 +426,9 @@ void loop()
                 Serial.print("Dew Point (oC): ");
                 Serial.println(d);
                 startMillsPrint = millis();
+
+                Blynk.virtualWrite(V2, Temperature);
+
             }
 #ifdef USE_JOYSTICK
             //Serial.print("joystickReady: ");  Serial.println(joystickReady);
