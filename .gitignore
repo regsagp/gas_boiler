@@ -7,3 +7,4 @@
 /test_terminal/Release
 /test_terminal/__vm
 /test_terminal/test_terminal.vcxproj.user
+/test_terminal/Credentials.h
