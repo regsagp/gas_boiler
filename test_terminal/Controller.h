@@ -30,6 +30,7 @@ int acquirestatus;
 // to check dht
 unsigned long startMills, startMillsPrint, startMillsPrintNotConnected, controlMillis;
 
+void SendTemperatureToChart(float temp, int relay_status);
 
 int printDHTResult(int result)
 {
@@ -143,6 +144,7 @@ int checkRelay() {
                 Serial.println("RELAY OFF");
                 digitalWrite(Relay, !RelayOn); // выключить горелку
                 TstatTimer = TstatTimerMax; // горелку держать выключённой не менее заданного в TstatTimerMax времени
+                SendTemperatureToChart(Temperature, 0);
             }
             return 0;
         }
@@ -153,6 +155,7 @@ int checkRelay() {
                 Serial.println("RELAY ON");
                 digitalWrite(Relay, RelayOn); // включить горелку
                 TstatTimer = TstatTimerMax; // горелку держать включённой не менее заданного в TstatTimerMax времени
+                SendTemperatureToChart(Temperature, 1);
             }
             return 1;
         }

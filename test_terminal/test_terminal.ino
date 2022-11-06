@@ -1,13 +1,17 @@
 // See the Device Info tab, or Template settings
-#define BLYNK_TEMPLATE_ID           "TMPLrV30J4jZ"
-#define BLYNK_DEVICE_NAME           "Quickstart Device"
-#define BLYNK_AUTH_TOKEN            "6udSeBvnyEMFv6xlBKz7cBJeV1H6uKkQ"
 #define USE_DISPLAY
 #define USE_JOYSTICK
 
+//  1 = 61 2 = MegaFonMR100 3=HUAWEI_P30 4=IPHONE
+#define WIFI_  2
+
+#include "Credentials.h"
+
 // version history:
 // 1.0 - add superchart
-#define APP_VERSION "ver 1.0"
+// 1.01- send temp to chart when relay on/off
+// 1.02- send relay on/off status
+#define APP_VERSION "ver 1.02"
 
 #include <PietteTech_DHT.h>  // Uncommend if building using CLI
 //#include <../libraries/PietteTech_DHT-8266-master/PietteTech_DHT.h>  // Uncommend if building using CLI
@@ -60,6 +64,9 @@ void IRAM_ATTR dht_wrapper() {
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <BlynkSimpleEsp32.h>
+#ifndef BlynkSimpleEsp32_h_My
+#error Used nom-edited blynk. Its doesn't reconnect when loose internet connection
+#endif
 #define  Relay  23 //LED_BUILTIN//D12 // нога, к которой подключено реле
 #else
 #include <ESP8266WiFi.h>
@@ -68,9 +75,15 @@ void IRAM_ATTR dht_wrapper() {
 #endif
 
 
+void SendTemperatureToChart(float temp, int relay_status)
+{
+    Blynk.virtualWrite(V2, temp);
+    if(relay_status >= 0)
+        Blynk.virtualWrite(V3, relay_status);
+}
+
 void loopPrintDHT()
 {
-
     Serial.print("\n");
     Serial.print(n);
     Serial.print(": Retrieving information from sensor: ");
@@ -115,7 +128,7 @@ void loopPrintDHT()
     Serial.print("Temperature (oC): ");
     Serial.println(temp, 2);
 
-    Blynk.virtualWrite(V2, temp);
+    SendTemperatureToChart(temp, -1);
 
     //Serial.print("Temperature (oF): ");
     //Serial.println(DHT.getFahrenheit(), 2);
@@ -133,32 +146,12 @@ void loopPrintDHT()
     //delay(2500);
 }
 
-//  1 = 61 2 = MegaFonMR100 3=HUAWEI_P30 4=IPHONE
-#define WIFI_  2
-
-
 BlynkTimer Timer1;
 
 #define RelayOn LOW // полярность сигнала включения реде (HIGH/LOW)
 #include "Controller.h"
 
 char auth[] = BLYNK_AUTH_TOKEN;
-
-// Your WiFi credentials.
-// Set password to "" for open networks.
-#if WIFI_ == 1 //61
-char ssid[] = "Mgts kv 61";
-char pass[] = "92008310";
-#elif WIFI_ == 2
-char ssid[] = "MegaFonMR100-3-76B0";
-char pass[] = "D8EA3J3N";
-#elif WIFI_ == 3
-char ssid[] = "HUAWEI P30";
-char pass[] = "21a62778cbba";
-#elif WIFI_ == 4
-char ssid[] = "iPhone a.pervov";
-char pass[] = "6xaipxkke89fp";
-#endif
 
 #include "Connect.h"
 
@@ -300,7 +293,7 @@ void setup()
 
     Serial.println("Hello2");
     pinMode(Relay, OUTPUT);
-    //digitalWrite(Relay, HIGH);
+    digitalWrite(Relay, !RelayOn); // turn off relay
     pinMode(pinX, INPUT);
 
 #ifdef USE_DISPLAY
@@ -398,7 +391,7 @@ void loop()
     //Blynk.run();
     checkConnect();
 
-    if ((millis() - startMills) > REPORT_INTERVAL * 2) {
+    if ((millis() - startMills) > REPORT_INTERVAL * 2) { // hmm. seems never reached this
         loopPrintDHT();
     }
 
@@ -412,7 +405,7 @@ void loop()
     }
 
     if ((millis() - startMills) > REPORT_INTERVAL) {
-        if (acquireresult == 0) {
+        if (acquireresult == 0) { // successfully acqure dht result
 
             if ((millis() - startMillsPrint) > PRINT_INTERVAL) {
                 Serial.println("");
@@ -427,8 +420,7 @@ void loop()
                 Serial.println(d);
                 startMillsPrint = millis();
 
-                Blynk.virtualWrite(V2, Temperature);
-
+                SendTemperatureToChart(Temperature, relay_is_on_state);
             }
 #ifdef USE_JOYSTICK
             //Serial.print("joystickReady: ");  Serial.println(joystickReady);
