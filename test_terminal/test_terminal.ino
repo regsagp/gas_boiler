@@ -11,7 +11,8 @@
 // 1.0 - add superchart
 // 1.01- send temp to chart when relay on/off
 // 1.02- send relay on/off status
-#define APP_VERSION "ver 1.02"
+// 1.03- add sethist command
+#define APP_VERSION "ver 1.03"
 
 #include <PietteTech_DHT.h>  // Uncommend if building using CLI
 //#include <../libraries/PietteTech_DHT-8266-master/PietteTech_DHT.h>  // Uncommend if building using CLI
@@ -157,7 +158,8 @@ char auth[] = BLYNK_AUTH_TOKEN;
 
 // Attach virtual serial terminal to Virtual Pin V1
 WidgetTerminal terminal(V1);
-bool setTempMode = false;
+// 0 - none, 1 - setTemp, 2 - setHist
+int setTempMode = 0;
 
 unsigned long last_loop_time, relay_on_time, relay_off_time;
 int relay_is_on_state = 0;
@@ -206,7 +208,7 @@ void printTStat() {
 // the same Virtual Pin as your Terminal Widget
 BLYNK_WRITE(V1)
 {
-    if (setTempMode)
+    if (setTempMode == 1)
     {
         Serial.println("terminal setTempMode");
 
@@ -218,15 +220,35 @@ BLYNK_WRITE(V1)
             Serial.print("incorrect temperature"); Serial.println(t);
             terminal.print("incorrect temperature:"); terminal.println(t);
         }
-        setTempMode = false;
+        setTempMode = 0;
+        printTStat();
+    }
+    else if (setTempMode == 2)
+    {
+        Serial.println("terminal setHistMode");
+
+        t = param.asFloat();
+        if (t >= MIN_HIST && t <= MAX_HIST)
+            Hysteresis = t;
+        else
+        {
+            Serial.print("incorrect hysteresis"); Serial.println(t);
+            terminal.print("incorrect hysteresis:"); terminal.println(t);
+        }
+        setTempMode = 0;
         printTStat();
     }
     else {
-        // if you type "Marco" into Terminal Widget - it will respond: "Polo:"
+        setTempMode = 0;
         if (String("settemp") == param.asStr()) {
             Serial.println("terminal settemp");
             terminal.print("enter temp:");
-            setTempMode = true;
+            setTempMode = 1;
+        }
+        if (String("sethist") == param.asStr()) {
+            Serial.println("terminal sethist");
+            terminal.print("enter sethist:");
+            setTempMode = 2;
         }
         else if (String("i") == param.asStr()) {
             terminal.print("temp: raw:"); terminal.print(t); terminal.print(", work:"); terminal.println(Temperature);
@@ -269,6 +291,7 @@ BLYNK_WRITE(V1)
             Serial.println("terminal back");
             terminal.println("Usage:");
             terminal.println(" settemp");
+            terminal.println(" sethist");
             terminal.println(" info/i");
             terminal.println(" heat");
             terminal.println(" low");

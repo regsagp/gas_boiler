@@ -8,8 +8,10 @@ bool bDHTstarted;       // flag to indicate we started acquisition
 unsigned int TstatTimer = 20; //таймер паузы между включениями/выключениями, начальная установка 20 сек для устаканивания системы после сброса
 float TstatTemp = 8; //температура термостатирования, может изменяться настройками
 float TemperatureCorr = 0; //коррекция температуры, может изменяться настройками
-const int MIN_TEMP = 8;
-const int MAX_TEMP = 35;
+constexpr int MIN_TEMP = 8;
+constexpr int MAX_TEMP = 35;
+constexpr int MIN_HIST = 0.1;
+constexpr int MAX_HIST = 2;
 float DS18B20Temperature = 0; //сырая температура от датчика
 float Temperature = 0; //вычисленная температура с коррекцией
 float DS18B20TempTmp; //времянка
