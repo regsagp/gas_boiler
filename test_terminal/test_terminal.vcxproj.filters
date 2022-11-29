@@ -27,7 +27,7 @@
     <ClInclude Include="Connect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Credentials.h">
+    <ClInclude Include="BlynkRoutines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

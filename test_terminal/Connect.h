@@ -61,7 +61,7 @@ void ConnectBlynk(){
 }//ConnectBlynk()
 
 // Реконектимся если обрыв связи
-void reconnectBlynk() {
+void reconnectService() {
   if (!Blynk.connected()){
     Serial.println("Diconnect...");
     Blynk.begin(auth, ssid, pass);

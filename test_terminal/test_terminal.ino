@@ -29,6 +29,11 @@ TM1637Display display(CLK, DIO); //set up the 4-Digit Display.
 #endif
 
 
+#define USE_BLYNK
+#ifdef USE_BLYNK
+#include "BlynkRoutines.h"
+#endif
+
 #define DHTTYPE  AM2302       // Sensor type DHT11/21/22/AM2301/AM2302
 #define DHTPIN   4           // Digital pin for communications
 
@@ -58,30 +63,19 @@ void IRAM_ATTR dht_wrapper() {
     DHT.isrCallback();
 }
 
-// Comment this out to disable prints and save space
-#define BLYNK_PRINT Serial
-
 #ifdef ESP32
 #include <WiFi.h>
 #include <WiFiClient.h>
+
+#ifdef USE_BLYNK
 #include <BlynkSimpleEsp32.h>
-#ifndef BlynkSimpleEsp32_h_My
-#error Used nom-edited blynk. Its doesn't reconnect when loose internet connection
 #endif
+
 #define  Relay  23 //LED_BUILTIN//D12 // нога, к которой подключено реле
 #else
 #include <ESP8266WiFi.h>
-#include <BlynkSimpleEsp8266.h>
 #define  Relay  D8 //LED_BUILTIN//D12 // нога, к которой подключено реле
 #endif
-
-
-void SendTemperatureToChart(float temp, int relay_status)
-{
-    Blynk.virtualWrite(V2, temp);
-    if(relay_status >= 0)
-        Blynk.virtualWrite(V3, relay_status);
-}
 
 void loopPrintDHT()
 {
@@ -147,17 +141,11 @@ void loopPrintDHT()
     //delay(2500);
 }
 
-BlynkTimer Timer1;
-
 #define RelayOn LOW // полярность сигнала включения реде (HIGH/LOW)
+
 #include "Controller.h"
-
-char auth[] = BLYNK_AUTH_TOKEN;
-
 #include "Connect.h"
 
-// Attach virtual serial terminal to Virtual Pin V1
-WidgetTerminal terminal(V1);
 // 0 - none, 1 - setTemp, 2 - setHist
 int setTempMode = 0;
 
@@ -196,11 +184,17 @@ void printRelayStats()
 
 void printTStat() {
     bool relay = digitalRead(Relay) == RelayOn;
-    terminal.print("relay temp:");
     char s[64];
+
+    terminal.print("relay temp:");
     sprintf(s, "%.1f", TstatTemp);
     terminal.write(s, strlen(s));
     terminal.write(relay ? " [ON]" : " [OFF]");
+    terminal.println();
+
+    terminal.print("hist:");
+    sprintf(s, "%.1f", Hysteresis);
+    terminal.write(s, strlen(s));
     terminal.println();
 }
 
@@ -245,7 +239,7 @@ BLYNK_WRITE(V1)
             terminal.print("enter temp:");
             setTempMode = 1;
         }
-        if (String("sethist") == param.asStr()) {
+        else if (String("sethist") == param.asStr()) {
             Serial.println("terminal sethist");
             terminal.print("enter sethist:");
             setTempMode = 2;
@@ -268,7 +262,7 @@ BLYNK_WRITE(V1)
         }
         else if (String("low") == param.asStr()) {
             Serial.println("terminal low");
-            TstatTemp = 10;
+            TstatTemp = 8;
             printTStat();
         }
         else if (String("sw") == param.asStr()) {
@@ -310,8 +304,7 @@ void setup()
     Serial.begin(115200);
     delay(1000);
 
-    reconnectBlynk();
-    //Blynk.begin(auth, ssid, pass);
+    reconnectService();
     setupPrintDHT();
 
     Serial.println("Hello2");
@@ -327,19 +320,8 @@ void setup()
     // Setup a function to be called every second
     Timer1.setInterval(500L, timerIsr);
 
-    // You can also specify server:
-    //Blynk.begin(auth, ssid, pass, "blynk.cloud", 80);
-    //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8080);
-
     // Clear the terminal content
     terminal.clear();
-
-    // This will print Blynk Software version to the Terminal Widget when
-    // your hardware gets connected to Blynk Server
-    terminal.println(F("Blynk v" BLYNK_VERSION ": Device started"));
-    terminal.println(F("-------------"));
-    terminal.println(F("Type 'Marco' and get a reply, or type"));
-    terminal.println(F("anything else and get it printed back."));
     terminal.flush();
 }
 
@@ -349,13 +331,6 @@ int wifilost_timer_start;
 int wifilost_timer_max = 60; // 60 sec timeout for reset if WiFi connection lost
 int uptime;
 
-
-bool connectBlynk() {
-    _blynkWifiClient.stop();
-    return _blynkWifiClient.connect(BLYNK_DEFAULT_DOMAIN, BLYNK_DEFAULT_PORT, 5000);
-}
-
-
 bool old_connect = false;
 
 void checkConnect()
@@ -363,29 +338,7 @@ void checkConnect()
     uptime = millis() / 1000;
     if (WiFi.status() == WL_CONNECTED) {
         online = true;
-        //Serial.print(Blynk.connected());
-      //wifilost_flag = false;
-
-      //if (blynk_token[0] != '\0')
-        {
-
-            if (Blynk.connected() /*&& _blynkWifiClient.connected()*/) {
-                Blynk.run();
-            }
-            else {
-                Blynk.begin(auth, ssid, pass);
-
-                Serial.print("\n\rReconnecting to blynk.. "); Serial.println(Blynk.connected());
-                //if (!_blynkWifiClient.connected()) {
-                //    connectBlynk();
-                //    return;
-                //}
-
-                //FIXME: add exit after n-unsuccesfull tries.
-                //Blynk.connect(4000);
-                Serial.print("..."); Serial.println(Blynk.connected());
-            }
-        }
+        CheckConnectService();
     }
     else {
         online = false;
@@ -404,14 +357,13 @@ void checkConnect()
             Serial.print("\n\rWiFi connection lost, restarting..");
             wifilost_flag = false;
             //ESP.restart();
-            reconnectBlynk();
+            reconnectService();
         }
     }
 }
 
 void loop()
 {
-    //Blynk.run();
     checkConnect();
 
     if ((millis() - startMills) > REPORT_INTERVAL * 2) { // hmm. seems never reached this
@@ -479,6 +431,10 @@ void timerIsr()
         plus1sec = true; // ежесекундно взводится
         if (TstatTimer != 0) {
             TstatTimer--; // ежесекундный декремент этого таймера
+
+            Serial.print("dbg: TstatTimer=");
+            Serial.println(TstatTimer);
+
         }
         if (MenuTimeoutTimer != 0) {
             MenuTimeoutTimer--; // ежесекундный декремент этого таймера
