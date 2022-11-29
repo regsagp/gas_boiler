@@ -5,7 +5,7 @@ bool bDHTstarted;       // flag to indicate we started acquisition
 
 
 #define TstatTimerMax 120 //минимальная пауза между включениями горелки, сек
-unsigned int TstatTimer = 20; //таймер паузы между включениями/выключениями, начальная установка 20 сек для устаканивания системы после сброса
+unsigned int TstatTimer = 60; //таймер паузы между включениями/выключениями, начальная установка 20 сек для устаканивания системы после сброса
 float TstatTemp = 8; //температура термостатирования, может изменяться настройками
 float TemperatureCorr = 0; //коррекция температуры, может изменяться настройками
 constexpr int MIN_TEMP = 8;
@@ -78,8 +78,8 @@ void InitDHT() {
     acquirestatus = 0;
     acquireresult = DHT.acquireAndWait(1000);
     if (acquireresult == 0) {
-        Serial.println("dht acquired");
         Temperature = t = DHT.getCelsius();
+        Serial.print("dht acquired, temp="); Serial.println(t); 
         h = DHT.getHumidity();
         d = DHT.getDewPoint();
     }
